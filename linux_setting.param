@@ -1,0 +1,8 @@
+obj path
+shell /bin/zsh
+type1 /home/franky/Desktop/type1cut/
+type2 /home/franky/Desktop/type2cut/
+ds9 ds9
+sex sextractor
+catalog ./list.csv
+output ./data.csv
