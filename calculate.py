@@ -55,17 +55,20 @@ def cal(path, name, center):
     for k in range(1, n):
         ff[k] += ff[k-1]
     eta = f-0.2*np.array(list(map(lambda t: ff[t]/(t+1), range(n))))
-    qpr = float(np.argwhere(eta < 0)[0])
+    try:
+        qpr = float(np.argwhere(eta < 0)[0])
+    except IndexError:
+        qpr = n
 
     # scale initial galaxy flux data
-    # f = scale(f, 1000)
+    f = scale(f, 1000)
 
     # calculate gini index
     gf = f[:qpr][::-1]
     gini = sum(list(map(lambda l: (2*(l+1)-qpr-1)*gf[l], np.arange(qpr))))/(gf.mean()*qpr*(qpr-1))
 
     # calculate moment index involved the center region of the galaxy
-    mk = int(np.argwhere(ff > gf.sum()*0.2)[0])
+    mk = int(np.argwhere(ff > gf.sum()*0.1)[0])
     mf = list(map(lambda l: f[l]*((y[arg[l]]-py)**2+(x[arg[l]]-px)**2), np.arange(qpr)))
     moment = np.sum(mf[:mk])/np.sum(mf)
 
@@ -87,7 +90,7 @@ def cal(path, name, center):
     # calculate asymmetry index
     asymmetry = 0
     ad = data
-    # ad = scale(data, 1000)
+    ad = scale(data, 1000)
     asum = f[:qpr].sum()
     for k in np.arange(qpr):
         ix, iy = x[arg[k]], y[arg[k]]
@@ -106,7 +109,7 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore')
     begin_time = time.clock()
 
-    settings = pd.read_table('linux_setting.param', sep=' ', header=0, index_col='obj')
+    settings = pd.read_table('mac_setting.param', sep=' ', header=0, index_col='obj')
     type1_fits_directory = settings.ix['type1', 'path']
     type2_fits_directory = settings.ix['type2', 'path']
     shell = settings.ix['shell', 'path']
@@ -156,7 +159,7 @@ if __name__ == '__main__':
             catalog.at[i, 'C2'] = catalog.at[j, 'C2']
             catalog.at[i, 'R2'] = catalog.at[j, 'R2']
 
-    catalog.to_csv('data.csv', columns=['NAME1', 'R1', 'G1', 'M1', 'A1', 'C1', 'NAME2', 'R2', 'G2', 'M2', 'A2', 'C2'],
+    catalog.to_csv('data2.csv', columns=['NAME1', 'R1', 'G1', 'M1', 'A1', 'C1', 'NAME2', 'R2', 'G2', 'M2', 'A2', 'C2'],
                    index_label=['INDEX'], sep=' ', float_format='%e')
     end_time = time.clock()
     log('@The function takes %f seconds to complete' % (end_time - begin_time), 'grey', attrs=['bold'])
