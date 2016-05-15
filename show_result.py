@@ -2,49 +2,55 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import warnings
+import matplotlib as mlt
+
+
+def normalize(a):
+    mn, mx = a.min(), a.max()
+    return (a-mn)/(mx-mn)
+
+
+def do_nothing(a):
+    return a
+
+
+def draw(d, item, ax, label, func=do_nothing, model='kde'):
+    x = item+'1'
+    y = item+'2'
+    a = func(d[x].values)
+    b = func(d[y].values)
+    mn, mx = max(a.min(), b.min()), min(a.max(), b.max())
+    bins_hist = np.linspace(mn, mx, 20)
+    bins_kde = np.linspace(mn, mx, 100)
+    ax.set(xlabel=name[item], ylabel='Gaussian Kernel Density')
+    if model == 'hist':
+        sns.distplot(a, bins=bins_hist, ax=ax, kde=False, hist=True,
+                     hist_kws={"histtype": "step", "linewidth": 2, "alpha": 1, "color": 'b', "label": label+'1'})
+        sns.distplot(b, bins=bins_hist, ax=ax, kde=False, hist=True,
+                     hist_kws={"histtype": "step", "linewidth": 2, "alpha": 1, "color": 'r', "label": label+'2'})
+    else:
+        sns.distplot(a, bins=bins_kde, ax=ax, label=label+'1', color='b', kde=True, hist=False)
+        sns.distplot(b, bins=bins_kde, ax=ax, label=label+'2', color='r', kde=True, hist=False)
 
 
 # R Band figure
+warnings.filterwarnings('ignore')
 
 # get data
 data = pd.read_csv('data.csv', sep=' ')
 # picture settings
-fr, ar = plt.subplots(2, 2, figsize=(16, 8), sharex=False, sharey=False)
-fr.suptitle('R Band Differences')
+fig, ar = plt.subplots(2, 2, figsize=(16, 8), sharex=False, sharey=False)
+fig.suptitle('R Band Differences')
 
-# Gini Coefficient
-g1 = sns.distplot(data['G1'].values, bins=25, ax=ar[0, 0], hist=True, kde=False,
-                  hist_kws={"histtype": "step", "linewidth": 2.5, "alpha": 1, 'color': 'r'})
-g1.set(xlabel='Gini Coefficient', ylabel='Count', xlim=[0.4, 0.65])
-# ar[0, 0].legend('ssss')
-g2 = sns.distplot(data['G2'].values, bins=25, ax=ar[0, 0], hist=True, kde=False,
-                  hist_kws={"histtype": "step", "linewidth": 2.5, "alpha": 1, 'color': 'b'})
-
-
-#  Concentration Index
-print(len(data[data.C1 > 0.2]))
-rc = sns.distplot(np.log10(data[data.C1 > 0.2]['C1'].values), bins=100, color='r', ax=ar[0, 1], hist=False, kde=True, label='type1')
-rc.set(xlabel='Concentration Index')
-sns.distplot(np.log10(data[data.C1 > 0.2]['C2'].values), bins=100, color='b', ax=ar[0, 1], hist=False, kde=True, label='type2')
-
-#  Moment Index
-rm = sns.distplot(np.log10(data[data.M2 < 0.03]['M1'].values), bins=100, color='r', ax=ar[1, 0], hist=False, kde=True, label='type1')
-rm.set(xlabel='Moment Index', ylabel='Gaussian Kernel Density')
-sns.distplot(np.log10(data[data.M2 < 0.03]['M2'].values), bins=100, color='c', ax=ar[1, 0], hist=False, kde=True, label='type2')
-# Asymmetry Index
-rm2 = sns.distplot(np.log10(data['A1'].values), bins=100, color='b', ax=ar[1, 1], hist=False, kde=True, label='type1')
-rm2.set(xlabel='Asymmetry Index', ylabel='Gaussian Kernel Density')
-sns.distplot(np.log10(data['A2'].values), bins=100, color='c', ax=ar[1, 1], hist=False, kde=True, label='type2')
-# rm = sns.distplot(np.log10(data['M1'].values), bins=100, color='g', ax=ar[1, 0], hist=False, kde=True, label='type1')
-# rm.set(xlabel='Moment Index', ylabel='Gaussian Kernel Density')
-# sns.distplot(np.log10(data['M2'].values), bins=100, color='c', ax=ar[1, 0], hist=False, kde=True, label='type2')
-# rm2 = sns.distplot(np.log10(data2['M1'].values), bins=100, color='g', ax=ar[1, 1], hist=False, kde=True, label='type1')
-# rm2.set(xlabel='Moment Index (agn removed)', ylabel='Gaussian Kernel Density')
-# sns.distplot(np.log10(data2['M2'].values), bins=100, color='c', ax=ar[1, 1], hist=False, kde=True, label='type2')
-
-# #  Asymmetry Index
-# rm = sns.distplot(data[data.A1 < 0.6]['A1'].values, bins=100, color='brown', ax=ar[1, 1], hist=False, kde=True, label='type1')
-# rm.set(xlabel='Asymmetry Index')
-# sns.distplot(data[data.A2 < 0.6]['A2'].values, bins=100, color='hotpink', ax=ar[1, 1], hist=False, kde=True, label='type2')
-
+name = {
+    'G': 'Gini Index',
+    'M': 'Moment_20 Index',
+    'A': 'Asymmetry Index',
+    'C': 'Concentration Index',
+}
+draw(data, 'G', ar[0, 0], 'type', model='kde', func=lambda x: np.log10(x))
+draw(data, 'M', ar[0, 1], 'type', model='kde', func=lambda x: np.log10(x))
+draw(data, 'A', ar[1, 0], 'type', model='kde', func=lambda x: np.log10(x))
+draw(data, 'C', ar[1, 1], 'type', model='kde', func=lambda x: np.log10(x))
 plt.show()

@@ -8,17 +8,10 @@ import warnings
 from termcolor import cprint as log
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-
-def draw(item):
-    sns.tsplot(item)
-    plt.show()
+import platform
 
 
 def cal(path, name, center):
-
-    def scale(item, alpha):
-        return np.log(alpha * item / np.max(item) + 1) / np.log(alpha)
 
     def dist_ceil(tx, ty):
         return np.ceil(np.sqrt((px - tx) ** 2 + (py - ty) ** 2))
@@ -34,8 +27,11 @@ def cal(path, name, center):
     wx, wy = center[0], center[1]
     px, py = np.round(wcs.WCS(header).wcs_world2pix(wx, wy, 0))
 
-    # use the software sextractor to dectect the file and get the segmentation map
+    # use the software sextractor to dectect the file and get the segmentation map and background map
     conf_sex = '-CHECKIMAGE_TYPE SEGMENTATION -CHECKIMAGE_NAME seg.fits'
+    _sp = subprocess.Popen('%s %s %s' % (sex, file, conf_sex), shell=True, executable=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    _sp.wait()
+    conf_sex = '-CHECKIMAGE_TYPE BACKGROUND -CHECKIMAGE_NAME bg.fits'
     _sp = subprocess.Popen('%s %s %s' % (sex, file, conf_sex), shell=True, executable=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     _sp.wait()
 
@@ -51,6 +47,7 @@ def cal(path, name, center):
     arg = np.argsort(data[y, x])[::-1]
     f = np.sort(data[y, x])[::-1]
     n = len(f)
+
     ff = np.copy(f)
     for k in range(1, n):
         ff[k] += ff[k-1]
@@ -60,37 +57,36 @@ def cal(path, name, center):
     except IndexError:
         qpr = n
 
-    # scale initial galaxy flux data
-    f = scale(f, 1000)
-
     # calculate gini index
     gf = f[:qpr][::-1]
     gini = sum(list(map(lambda l: (2*(l+1)-qpr-1)*gf[l], np.arange(qpr))))/(gf.mean()*qpr*(qpr-1))
 
-    # calculate moment index involved the center region of the galaxy
-    mk = int(np.argwhere(ff > gf.sum()*0.1)[0])
-    mf = list(map(lambda l: f[l]*((y[arg[l]]-py)**2+(x[arg[l]]-px)**2), np.arange(qpr)))
-    moment = np.sum(mf[:mk])/np.sum(mf)
-
     # calculate concentration index
-
     dst = list(map(dist_ceil, x, y))
-    radius = np.ceil(max(dst)+1)
+    radius = np.ceil(max(dst) + 1)
     sb = np.zeros(radius)
+    ssb = np.copy(sb)
     for k in np.arange(qpr):
         d = dst[arg[k]]
-        sb[d] += f[k]/(2*d+1)
+        sb[d] += f[k] / (2 * d + 1)
+    ssb = sb * [2 * d + 1 for d in np.arange(len(sb))]
+    for k in range(1, len(ssb)):
+        ssb[k] += ssb[k-1]
     try:
-        cr = np.argwhere(sb < rms*2)[0]
-        ssb = sb*[(d+1)**2-d**2 for d in np.arange(len(sb))]
-        concentration = ssb[:0.3*cr].sum()/ssb[:cr].sum()
+        cr = np.argwhere(sb < rms * 2)[0]
+        concentration = ssb[0.3 * cr] / ssb[cr]
     except IndexError:
         concentration = np.nan
 
+    # calculate moment index
+    mk = int(np.argwhere(ff > ff[qpr]*0.2)[0])
+    mf = list(map(lambda l: f[l]*((y[arg[l]]-py)**2+(x[arg[l]]-px)**2), np.arange(qpr)))
+    moment = np.sum(mf[:mk])/np.sum(mf)
+
     # calculate asymmetry index
     asymmetry = 0
-    ad = data
-    ad = scale(data, 1000)
+    bg = ft.open('bg.fits')[0].data
+    ad = data - bg
     asum = f[:qpr].sum()
     for k in np.arange(qpr):
         ix, iy = x[arg[k]], y[arg[k]]
@@ -107,9 +103,13 @@ def cal(path, name, center):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')
-    begin_time = time.clock()
+    start_time = time.clock()
 
-    settings = pd.read_table('mac_setting.param', sep=' ', header=0, index_col='obj')
+    if platform.system() == 'Linux':
+        settings = pd.read_table('linux_setting.param', sep=' ', header=0, index_col='obj')
+    else:
+        settings = pd.read_table('mac_setting.param', sep=' ', header=0, index_col='obj')
+
     type1_fits_directory = settings.ix['type1', 'path']
     type2_fits_directory = settings.ix['type2', 'path']
     shell = settings.ix['shell', 'path']
@@ -124,10 +124,8 @@ if __name__ == '__main__':
     calculated_set2 = {}
 
     for i in range(len(catalog)):
-        # subprocess.call('rm *.fits catalog.txt', shell=True, executable=shell)
+        t0 = time.clock()
         ctl = catalog.ix[i]
-        log('INDEX==> %d' % i, 'cyan', end='   ', attrs=['bold'])
-        log('OBJECT==> %s %s' % (ctl.NAME1, ctl.NAME2), 'green')
         if ctl.NAME1 not in calculated_set1:
             r, g, m, a, c = cal(type1_fits_directory, ctl.NAME1, [ctl.RA1, ctl.DEC1])
             catalog.at[i, 'G1'] = g
@@ -158,8 +156,12 @@ if __name__ == '__main__':
             catalog.at[i, 'A2'] = catalog.at[j, 'A2']
             catalog.at[i, 'C2'] = catalog.at[j, 'C2']
             catalog.at[i, 'R2'] = catalog.at[j, 'R2']
+        t1 = time.clock()
+        log('INDEX==> %d' % i, 'cyan', end='   ', attrs=['bold'])
+        log('OBJECT==> %s %s' % (ctl.NAME1, ctl.NAME2), 'green', end='    ')
+        log('processed in %f seconds' % (t1-t0), 'blue')
 
-    catalog.to_csv('data2.csv', columns=['NAME1', 'R1', 'G1', 'M1', 'A1', 'C1', 'NAME2', 'R2', 'G2', 'M2', 'A2', 'C2'],
+    catalog.to_csv('data.csv', columns=['NAME1', 'R1', 'G1', 'M1', 'A1', 'C1', 'NAME2', 'R2', 'G2', 'M2', 'A2', 'C2'],
                    index_label=['INDEX'], sep=' ', float_format='%e')
     end_time = time.clock()
-    log('@The function takes %f seconds to complete' % (end_time - begin_time), 'grey', attrs=['bold'])
+    log('@The function takes %f seconds to complete' % (end_time - start_time), 'grey', attrs=['bold'])
