@@ -57,12 +57,14 @@ def cal(path, name, center):
     except IndexError:
         qpr = n
 
+    # TODO 删除大于qpr的flux, 同时修正radius
     # calculate gini index
     gf = f[:qpr][::-1]
     gini = sum(list(map(lambda l: (2*(l+1)-qpr-1)*gf[l], np.arange(qpr))))/(gf.mean()*qpr*(qpr-1))
 
     # calculate concentration index
     dst = list(map(dist_ceil, x, y))
+    print(x[np.argmax(dst)], y[np.argmax(dst)])
     radius = np.ceil(max(dst) + 1)
     sb = np.zeros(radius)
     ssb = np.copy(sb)
@@ -74,20 +76,34 @@ def cal(path, name, center):
         ssb[k] += ssb[k-1]
     try:
         cr = np.argwhere(sb < rms * 2)[0]
-        concentration = ssb[0.3 * cr] / ssb[cr]
+        concentration = ssb[int(0.3*cr)] / ssb[cr]
     except IndexError:
         concentration = np.nan
 
+    r50 = float(np.argwhere(ssb > ssb[-1]*0.5)[0])
+
     # calculate moment index
-    mk = int(np.argwhere(ff > ff[qpr]*0.2)[0])
-    mf = list(map(lambda l: f[l]*((y[arg[l]]-py)**2+(x[arg[l]]-px)**2), np.arange(qpr)))
-    moment = np.sum(mf[:mk])/np.sum(mf)
+    # mk = int(np.argwhere(ff > ff[qpr]*0.2)[0])
+    # mt = list(map(lambda l: f[l]*dst[arg[l]], np.arange(qpr)))
+    # moment = np.sum(mt[:mk])/np.sum(mt)
+    mff = np.copy(f[:qpr])
+    mff[0] = 0
+    for k in range(1, len(mff)):
+        mff[k] = mff[k-1]+mff[k] if dst[arg[k]] > r50 else mff[k-1]
+
+    # sns.tsplot(np.array(mff[:100]))
+    # plt.show()
+    mt = list(map(lambda l: f[l]*dst[arg[l]] if dst[arg[l]] > r50 else 0, np.arange(qpr)))
+    print(r50, radius)
+    input()
+    mk = int(np.argwhere(mff > mff[-1]*0.2)[0])
+    moment = np.sum(mt[:mk])/np.sum(mt)
 
     # calculate asymmetry index
     asymmetry = 0
     bg = ft.open('bg.fits')[0].data
     ad = data - bg
-    asum = f[:qpr].sum()
+    asum = sum(list(map(lambda l: ad[y[arg[k]]][x[arg[k]]] if dst[arg[l]] > r50 else 0, np.arange(qpr))))
     for k in np.arange(qpr):
         ix, iy = x[arg[k]], y[arg[k]]
         jx, jy = py*2-iy, px*2-ix
@@ -97,7 +113,6 @@ def cal(path, name, center):
             ad[jy][jx] *= 0
         asymmetry += abs(ad[iy][ix]-ad[jy][jx])/asum
 
-    radius = np.ceil(np.sqrt(radius))
     return radius, gini, moment, asymmetry, concentration
 
 
