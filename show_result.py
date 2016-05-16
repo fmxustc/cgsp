@@ -31,7 +31,6 @@ def draw(d, item, ax, label, func=do_nothing, model='kde'):
                      hist_kws={"histtype": "step", "linewidth": 2, "alpha": 1, "color": 'r', "label": label+'2'})
     else:
         ax.set(xlabel=name[item], ylabel='Count')
-        print(bins_kde)
         sns.distplot(a, bins=bins_kde, ax=ax, label=label+'1', color='b', kde=True, hist=False)
         sns.distplot(b, bins=bins_kde, ax=ax, label=label+'2', color='r', kde=True, hist=False)
 
@@ -40,7 +39,7 @@ def draw(d, item, ax, label, func=do_nothing, model='kde'):
 warnings.filterwarnings('ignore')
 
 # get data
-data = pd.read_csv('data.csv', sep=' ')
+data = pd.read_csv('data2.csv', sep=' ')
 # picture settings
 fig, ar = plt.subplots(2, 2, figsize=(16, 8), sharex=False, sharey=False)
 fig.suptitle('R Band Differences')
@@ -51,8 +50,8 @@ name = {
     'A': 'log(Asymmetry) Index',
     'C': 'Concentration Index',
 }
-# draw(data, 'G', ar[0, 0], 'type', model='kde')
-draw(data, 'M', ar[0, 1], 'type', model='kde')
+draw(data, 'G', ar[0, 0], 'type', model='kde')
+draw(data, 'M', ar[0, 1], 'type', model='kde', func=np.log10)
 draw(data, 'A', ar[1, 0], 'type', model='kde')
 draw(data, 'C', ar[1, 1], 'type', model='kde')
 plt.show()
