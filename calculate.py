@@ -65,7 +65,8 @@ def cal(path, name, center):
     ff = ff[:qpr]
 
     # calculate distance between every pixel and the center
-    df = np.array([np.sqrt((px - x[l])**2 + (py - y[l])**2) for l in arg[:qpr]])
+    df = np.array([np.sqrt((px - x[l])**2 + (py - y[l])**2) for l in arg[:qpr]
+                   ])
     # calculate cumulative flux, surface brightness, mean surface brightness
     radius = np.ceil(max(df)) + 1
     sb = np.zeros(radius)
@@ -80,36 +81,55 @@ def cal(path, name, center):
     # get the value of r50 depend on the cf array
     rcf = cf / cf[-1]
     r50 = int(np.argwhere(rcf > 0.5)[0])
+    r20 = int(np.argwhere(rcf > 0.2)[0])
+    r80 = int(np.argwhere(rcf > 0.8)[0])
 
     # calculate gini index
     gf = f[::-1]
-    gini = np.sum(
-        (2 * np.arange(qpr) - qpr + 1) * gf) / (np.mean(gf) * qpr * (qpr - 1))
+    gini = np.sum((2 * np.arange(qpr) - qpr + 1) * gf) / (np.mean(gf) * qpr *
+                                                          (qpr - 1))
 
     # calculate concentration index
-    try:
-        cr = np.argwhere(sb < rms * 2)[0]
-        concentration = float(cf[int(0.3 * cr)] / cf[cr])
-    except IndexError:
-        concentration = np.nan
+    # try:
+    #     cr = np.argwhere(sb < rms * 2)[0]
+    #     concentration = float(cf[int(0.3 * cr)] / cf[cr])
+    # except IndexError:
+    #     concentration = np.nan
     # r20 = int(np.argwhere(rcf > 0.2)[0])
     # r80 = int(np.argwhere(rcf > 0.8)[0])
-    # concentration = r80/r20
+    concentration = r20/r80
 
     # calculate moment index
-    mt = (df**2) * f
-    rff = np.copy(ff) / ff[-1]
-    moment = np.sum(mt[:np.argwhere(rff > 0.2)[0]]) / np.sum(mt)
+    # mt = (df**2) * f
+    # rff = np.copy(ff) / ff[-1]
+    # moment = np.sum(mt[:np.argwhere(rff > 0.2)[0]]) / np.sum(mt)
+    mf = np.array([f[l] for l in range(qpr) if df[l] > r50])
+    mdf = np.array([df[l] for l in range(qpr) if df[l] > r50])
+    mff = np.copy(mf)
+    for k in range(1, len(mff)):
+        mff[k] += mff[k - 1]
+    mt = (mdf**2) * mf
+    rmff = np.copy(mff) / mff[-1]
+    moment = np.sum(mt[:np.argwhere(rmff > 0.2)[0]]) / np.sum(mt)
 
     # calculate asymmetry index:
-    sda = data[y, x] - bg[y, x]
+    sd = data - bg
     sx, sy = np.int_(np.round(2 * px - x)), np.int_(np.round(2 * py - y))
-    sdb = data[sy, sx] - bg[sy, sx]
-    asymmetry = np.sum([abs(sda[l] - sdb[l])
-                        if seg[sy[l]][sx[l]] == seg[py][px] else abs(sda[l])
+    asymmetry = np.sum([abs(sd[y[l]][x[l]] - sd[sy[l]][sx[l]])
+                        if seg[sy[l]][sx[l]] == seg[py][px] else abs(sd[y[l]][x[l]])
                         for l in arg[:qpr]]) / np.sum(abs(f))
+    # sd = data - bg
+    # sx, sy = np.int_(np.round(2 * px - x)), np.int_(np.round(2 * py - y))
+    # asymmetry = np.sum(
+    #     [abs(sd[y[l]][x[l]] - sd[sy[l]][sx[l]]) if seg[sy[l]][sx[
+    #         l]] == seg[py][px] else abs(sd[y[l]][x[l]]) for l in arg[:qpr]
+    #      if np.sqrt((px - x[l])**2 + (py - y[l])**2) > r80]) / np.sum(abs(mf))
+    # ts = np.copy(seg)
+    # for l in arg[:qpr]:
+    #     if np.sqrt((px - x[l])**2 + (py - y[l])**2) <= r50:
+    #         ts[y[l]][x[l]] = 0
+    # ft.writeto('ymp.fits', ts)
     # print(radius, gini, moment, asymmetry, concentration)
-
     return radius, gini, moment, asymmetry, concentration
 
 
@@ -128,8 +148,8 @@ if __name__ == '__main__':
             t0 = time.clock()
             ctl = catalog.ix[i]
             if ctl.NAME1 not in calculated_set1:
-                r, g, m, a, c = cal(type1_fits_directory, ctl.NAME1, [ctl.RA1,
-                                                                      ctl.DEC1])
+                r, g, m, a, c = cal(type1_fits_directory, ctl.NAME1,
+                                    [ctl.RA1, ctl.DEC1])
                 catalog.at[i, 'G1'] = g
                 catalog.at[i, 'M1'] = m
                 catalog.at[i, 'A1'] = a
@@ -144,8 +164,8 @@ if __name__ == '__main__':
                 catalog.at[i, 'C1'] = catalog.at[j, 'C1']
                 catalog.at[i, 'R1'] = catalog.at[j, 'R1']
             if ctl.NAME2 not in calculated_set2:
-                r, g, m, a, c = cal(type2_fits_directory, ctl.NAME2, [ctl.RA2,
-                                                                      ctl.DEC2])
+                r, g, m, a, c = cal(type2_fits_directory, ctl.NAME2,
+                                    [ctl.RA2, ctl.DEC2])
                 catalog.at[i, 'G2'] = g
                 catalog.at[i, 'M2'] = m
                 catalog.at[i, 'A2'] = a
@@ -161,7 +181,9 @@ if __name__ == '__main__':
                 catalog.at[i, 'R2'] = catalog.at[j, 'R2']
             t1 = time.clock()
             log('INDEX==> %d' % i, 'cyan', end='   ', attrs=['bold'])
-            log('OBJECT==> %s %s' % (ctl.NAME1, ctl.NAME2), 'green', end='    ')
+            log('OBJECT==> %s %s' % (ctl.NAME1, ctl.NAME2),
+                'green',
+                end='    ')
             log('processed in %f seconds' % (t1 - t0), 'blue')
 
         catalog.to_csv('data2.csv',
@@ -180,7 +202,7 @@ if __name__ == '__main__':
         sample = data
         # sample = sample.drop_duplicates('NAME1')
         sample.index = sample['NAME2']
-        for i in range(6):
+        for i in range(5):
             x = sample.ix[ll[i]]
             ctl = x.ix[0] if str(x.index[0]) != 'NAME1' else x
             r, g, m, a, c = cal(type2_fits_directory, ctl.NAME2, [ctl.RA2,
@@ -209,6 +231,7 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore')
     start_time = time.clock()
     dat()
+    # test()
     end_time = time.clock()
     log('@The function takes %f seconds to complete' % (end_time - start_time),
         'grey',
