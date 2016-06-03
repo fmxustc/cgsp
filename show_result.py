@@ -97,10 +97,10 @@ def pic():
 warnings.filterwarnings('ignore')
 
 # get data
-data0 = pd.read_csv('data0.csv', sep=' ')
-data1 = pd.read_csv('data1.csv', sep=' ')
-data2 = pd.read_csv('data2.csv', sep=' ')
-data3 = pd.read_csv('data3.csv', sep=' ')
+data0 = pd.read_csv('data.csv', sep=' ')
+# data1 = pd.read_csv('data1.csv', sep=' ')
+# data2 = pd.read_csv('data2.csv', sep=' ')
+# data3 = pd.read_csv('data3.csv', sep=' ')
 # picture settings
 fig, ar = plt.subplots(2, 2, figsize=(16, 8), sharex=False, sharey=False)
 fig.suptitle('R Band Differences')
@@ -112,13 +112,13 @@ name = {
     'C': 'Concentration Index',
 }
 # pic(), func=np.log10
-# print(len(data[data.A1 >0.6]),len(data[data.A2 >0.6]))
-draw(data0, 'M', ar[0, 0], 'type', model='kde', func=np.log10)
-draw(data1, 'M', ar[0, 1], 'type', model='kde', func=np.log10)
-draw(data2, 'M', ar[1, 0], 'type', model='kde', func=np.log10)
-draw(data3, 'M', ar[1, 1], 'type', model='kde', func=np.log10)
-# draw(data, 'M', ar[0, 1], 'type', model='hist', func=np.log10)
-# draw(data, 'A', ar[1, 0], 'type', model='kde')
-# draw(data, 'C', ar[1, 1], 'type', model='kde', func=np.log10)
+print(len(data0[data0.A1 > 0.3]), len(data0[data0.A2 > 0.3]))
+draw(data0, 'G', ar[0, 0], 'type', model='kde', func=np.log10)
+# draw(data1, 'M', ar[0, 1], 'type', model='kde', func=np.log10)
+# draw(data2, 'M', ar[1, 0], 'type', model='kde', func=np.log10)
+# draw(data3, 'M', ar[1, 1], 'type', model='kde', func=np.log10)
+draw(data0, 'M', ar[0, 1], 'type', model='kde', func=np.log10)
+draw(data0, 'A', ar[1, 0], 'type', model='kde')
+draw(data0, 'C', ar[1, 1], 'type', model='kde', func=np.log10)
 
 plt.show()
