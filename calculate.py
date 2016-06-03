@@ -90,46 +90,66 @@ def cal(path, name, center):
                                                           (qpr - 1))
 
     # calculate concentration index
-    # try:
-    #     cr = np.argwhere(sb < rms * 2)[0]
-    #     concentration = float(cf[int(0.3 * cr)] / cf[cr])
-    # except IndexError:
-    #     concentration = np.nan
-    # r20 = int(np.argwhere(rcf > 0.2)[0])
-    # r80 = int(np.argwhere(rcf > 0.8)[0])
-    concentration = r20/r80
+    try:
+        cr = np.argwhere(sb < rms * 2)[0]
+        concentration = float(cf[int(0.3 * cr)] / cf[cr])
+    except IndexError:
+        concentration = np.nan
+    r20 = int(np.argwhere(rcf > 0.2)[0])
+    r80 = int(np.argwhere(rcf > 0.8)[0])
+    # concentration = r20/r80
 
     # calculate moment index
-    # mt = (df**2) * f
-    # rff = np.copy(ff) / ff[-1]
-    # moment = np.sum(mt[:np.argwhere(rff > 0.2)[0]]) / np.sum(mt)
-    mf = np.array([f[l] for l in range(qpr) if df[l] > r50])
-    mdf = np.array([df[l] for l in range(qpr) if df[l] > r50])
-    mff = np.copy(mf)
-    for k in range(1, len(mff)):
-        mff[k] += mff[k - 1]
-    mt = (mdf**2) * mf
-    rmff = np.copy(mff) / mff[-1]
-    moment = np.sum(mt[:np.argwhere(rmff > 0.2)[0]]) / np.sum(mt)
+    mt = (df**2) * f
+    rff = np.copy(ff) / ff[-1]
+    moment = np.sum(mt[:np.argwhere(rff > 0.2)[0]]) / np.sum(mt)
+    # mf = np.array([f[l] for l in range(qpr) if df[l] > r50])
+    # mdf = np.array([df[l] for l in range(qpr) if df[l] > r50])
+    # mff = np.copy(mf)
+    # for k in range(1, len(mff)):
+    #     mff[k] += mff[k - 1]
+    # mt = (mdf**2) * mf
+    # rmff = np.copy(mff) / mff[-1]
+    # moment = np.sum(mt[:np.argwhere(rmff > 0.2)[0]]) / np.sum(mt)
 
     # calculate asymmetry index:
-    sd = data - bg
+    # box = data.shape[0]//10
+    # ctl = pd.read_csv('catalog.txt', sep='\s+', header=None, names=['mag', 'x', 'y', 'fi', 'fp'])
+    # #   find stars in catalog produced by sextractor
+    # ctl['dist'] = np.sqrt((ctl.x-px)**2+(ctl.y-py)**2)
+    # ctl['ratio'] = ctl.fi/ctl.fp
+    # exs = ctl[(ctl.dist < box*1.5) & (ctl.ratio <= 4)]
+    # # print(box)
+    # # print(exs)
+    # ps_seg = []
+    # for k in exs.index:
+    #     ex = exs.ix[k]
+    #     if seg[ex.y][ex.x] in ps_seg:
+    #         ps_seg.append(seg[ex.y][ex.x])
+    # if seg[py][px] in ps_seg:
+    #     ps_seg.remove(seg[py][px])
+    # ps_seg = np.array(ps_seg)
+    # for ky in np.arange(py-box, py+box+1):
+    #     for kx in np.arange(px-box, px+box+1):
+    #         if seg[ky][kx] in ps_seg:
+    #             data[ky][kx] = data[2*py-ky][2*px-kx] = 0
+    #             # seg[ky][kx] = seg[2*py-ky][2*px-kx] = 100
+    # _I = np.abs(data[py-box:py+box+1, px-box:px+box+1])
+    # _I180 = np.rot90(_I, 2)
+    # # _S = np.copy(seg[py-box:py+box+1, px-box:px+box+1])
+    # subprocess.call('rm tmpd.fits', shell=True, executable=shell)
+    # ft.writeto('tmpd.fits', _I)
+    # # ft.writeto('tmps.fits', _S)
+    # asymmetry = np.sum(np.abs(_I-_I180))/np.sum(_I)
+    # if asymmetry > 1:
+    #     view = '-geometry 1920x1080 -view layout vertical -view panner no -view buttons no -view info yes -view magnifier no -view colorbar no'
+    #     stts = '-invert -cmap value 1.75 0.275 -zoom 0.5 -minmax -log'
+    #     subprocess.Popen('%s %s %s %s' % (ds9, view, stts, path + name + '_r.fits'), shell=True, executable='/bin/zsh')
+    #     input()
     sx, sy = np.int_(np.round(2 * px - x)), np.int_(np.round(2 * py - y))
-    asymmetry = np.sum([abs(sd[y[l]][x[l]] - sd[sy[l]][sx[l]])
-                        if seg[sy[l]][sx[l]] == seg[py][px] else abs(sd[y[l]][x[l]])
-                        for l in arg[:qpr]]) / np.sum(abs(f))
-    # sd = data - bg
-    # sx, sy = np.int_(np.round(2 * px - x)), np.int_(np.round(2 * py - y))
-    # asymmetry = np.sum(
-    #     [abs(sd[y[l]][x[l]] - sd[sy[l]][sx[l]]) if seg[sy[l]][sx[
-    #         l]] == seg[py][px] else abs(sd[y[l]][x[l]]) for l in arg[:qpr]
-    #      if np.sqrt((px - x[l])**2 + (py - y[l])**2) > r80]) / np.sum(abs(mf))
-    # ts = np.copy(seg)
-    # for l in arg[:qpr]:
-    #     if np.sqrt((px - x[l])**2 + (py - y[l])**2) <= r50:
-    #         ts[y[l]][x[l]] = 0
-    # ft.writeto('ymp.fits', ts)
-    # print(radius, gini, moment, asymmetry, concentration)
+    asymmetry = np.sum([abs(data[y[l]][x[l]] - data[sy[l]][sx[l]])
+                        if seg[sy[l]][sx[l]] == seg[py][px] else 0
+                        for l in arg[:qpr]]) / np.sum([abs(data[y[l]][x[l]]) if seg[sy[l]][sx[l]] == seg[py][px] else 0 for l in arg[:qpr]])
     return radius, gini, moment, asymmetry, concentration
 
 
@@ -186,7 +206,8 @@ if __name__ == '__main__':
                 end='    ')
             log('processed in %f seconds' % (t1 - t0), 'blue')
 
-        catalog.to_csv('data2.csv',
+
+        catalog.to_csv('data.csv',
                        columns=['NAME1', 'R1', 'G1', 'M1', 'A1', 'C1', 'NAME2',
                                 'R2', 'G2', 'M2', 'A2', 'C2'],
                        index_label=['INDEX'],
